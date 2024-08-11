@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrito de compras</title>
+</head>
+<body>
+    <h1>Carrito</h1>
+
+    <form id="cart-form">
+        <input type="number" id="product-id" placeholder="ID del producto" required>
+        <input type="number" id="product-quantity" placeholder="Cantidad" required>
+        <button type="submit">Agregar al Carrito</button>
+    </form>
+
+    <h2>Productos en el carro</h2>
+    <ul id="cart-list">
+        {{#each cart.products}}
+            <li>
+                Producto: {{this.name}} - Cantidad: {{this.quantity}} - Precio unitario: ${{this.price}}
+                <button data-id="{{this.product}}" class="remove-button">Eliminar</button>
+            </li>
+        {{/each}}
+    </ul>
+
+    <button id="clear-cart-button">Vaciar Carrito</button>
+
+    <h2>Total: $<span id="cart-total"></span></h2>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        function calculateCartTotal(cart) {
+            return cart.products.reduce((total, item) => total + (item.price * item.quantity), 0);
+        }
+
+        socket.on('updateCart', (cart) => {
+            console.log('Recibiendo carrito actualizado:', cart);
+            const cartList = document.getElementById('cart-list');
+            cartList.innerHTML = '';
+            if (cart && cart.products && cart.products.length > 0) {
+                cart.products.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `Producto: ${item.name} - Cantidad: ${item.quantity} - Precio unitario: $${item.price} <button data-id="${item.product}" class="remove-button">Eliminar</button>`;
+                    cartList.appendChild(li);
+                });
+
+                document.querySelectorAll('.remove-button').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const productId = this.getAttribute('data-id');
+                        socket.emit('removeProductFromCart', { cartId: 1, productId: parseInt(productId) });
+                    });
+                });
+            } else {
+                cartList.innerHTML = '<li>El carrito está vacío.</li>';
+            }
+
+            const total = calculateCartTotal(cart);
+            document.getElementById('cart-total').innerText = total.toFixed(2);
+        });
+
+        document.getElementById('cart-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const productId = parseInt(document.getElementById('product-id').value);
+            const quantity = parseInt(document.getElementById('product-quantity').value);
+            console.log('Enviando producto al carrito:', { cartId: 1, productId, quantity });
+            socket.emit('addProductToCart', { cartId: 1, productId, quantity });
+            document.getElementById('cart-form').reset();
+        });
+
+        document.getElementById('clear-cart-button').addEventListener('click', function() {
+            if (confirm('¿Estás seguro de que quieres vaciar el carrito?')) {
+                socket.emit('clearCart', { cartId: 1 });
+            }
+        });
+    </script>
+</body>
+</html>

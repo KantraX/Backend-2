@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emporio Santiago</title>
+</head>
+<body>
+    <h1>Lista de productos</h1>
+
+    <form id="product-form">
+
+        <input type="text" id="product-name" placeholder="Nombre del producto" required>
+        <input type="number" id="product-price" placeholder="Precio del producto" required>
+        <button type="submit">Agregar producto</button>
+
+    </form>
+
+    <ul id="product-list">
+        {{#each products}}
+            <li>
+                {{this.id}} - {{this.name}}: {{this.price}}
+                <button data-id="{{this.id}}" class="delete-button">Eliminar</button>
+            </li>
+        {{/each}}
+    </ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        socket.on('updateProducts', (products) => {
+            const productList = document.getElementById('product-list');
+            productList.innerHTML = '';
+            products.forEach(product => {
+                const li = document.createElement('li');
+                li.innerHTML = `${product.id} - ${product.name}: ${product.price} <button data-id="${product.id}" class="delete-button">Eliminar</button>`;
+                productList.appendChild(li);
+            });
+            
+            document.querySelectorAll('.delete-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const productId = this.getAttribute('data-id');
+                    console.log('Eliminando producto con ID:', productId);
+                    socket.emit('deleteProduct', productId);
+                });
+            });
+        });
+
+        document.getElementById('product-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const name = document.getElementById('product-name').value;
+            const price = document.getElementById('product-price').value;
+            console.log('Enviando nuevo producto:', { name, price });
+            socket.emit('newProduct', { name, price });
+            document.getElementById('product-form').reset();
+        });
+
+       document.querySelectorAll('.delete-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = this.getAttribute('data-id');
+                socket.emit('deleteProduct', productId);
+            });
+        });
+    </script>
+</body>
+</html>
